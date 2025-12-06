@@ -33,6 +33,8 @@ A modern, full-stack AI chat application built with TanStack Start, featuring mu
 - **Anthropic** - Claude 3.5 Sonnet, Claude 3.5 Haiku
 - **Google** - Gemini 1.5 Pro, Gemini 1.5 Flash
 
+> **Note:** AI model availability depends on [@tanstack/ai](https://www.npmjs.com/package/@tanstack/ai) and its provider adapters. Check the [TanStack AI documentation](https://tanstack.com/ai) for the latest supported models and providers.
+
 ## 📋 Prerequisites
 
 - **Node.js** 18+ 
@@ -176,7 +178,13 @@ Then add adapter logic in `src/lib/chat-actions.ts`.
 
 ## 📝 License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🔗 Links
+
+- **GitHub Repository**: [https://github.com/rs-4/tanstack-ai-demo](https://github.com/rs-4/tanstack-ai-demo)
+- **TanStack Docs**: [https://tanstack.com](https://tanstack.com)
+- **TanStack AI**: [https://tanstack.com/ai](https://tanstack.com/ai)
 
 ## 🙏 Acknowledgments
 
