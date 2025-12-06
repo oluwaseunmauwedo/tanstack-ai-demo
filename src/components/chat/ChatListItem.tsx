@@ -30,14 +30,15 @@ export function ChatListItem({ chat, isActive, onDelete, onTogglePin }: ChatList
                 to="/chat/$chatId"
                 params={{ chatId: chat.id }}
                 className={cn(
-                    'flex items-center gap-2 px-3 py-2.5 pr-16 rounded-lg text-sm transition-colors relative',
+                    'flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors relative overflow-hidden',
                     isActive
                         ? 'bg-accent text-accent-foreground'
                         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                 )}
+                style={{ paddingRight: '4.5rem' }}
             >
                 <MessageSquare className="h-4 w-4 shrink-0" />
-                <span className="truncate flex-1">{chat.title}</span>
+                <span className="truncate block overflow-hidden text-ellipsis whitespace-nowrap">{chat.title.slice(0, 20)}</span>
             </Link>
 
             {/* Action buttons - only visible when THIS item is hovered */}
