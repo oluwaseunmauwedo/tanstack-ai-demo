@@ -7,6 +7,18 @@ export const AI_PROVIDERS = [
         name: 'OpenAI',
         models: [
             {
+                id: 'gpt-5.2',
+                name: 'GPT-5.2',
+                supportsVision: true,
+                supportsPDF: false,
+            },
+            {
+                id: 'gpt-5',
+                name: 'GPT-5.0',
+                supportsVision: true,
+                supportsPDF: false,
+            },
+            {
                 id: 'gpt-4o-mini',
                 name: 'GPT-4o Mini',
                 supportsVision: true,

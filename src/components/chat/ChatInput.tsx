@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useForm } from '@tanstack/react-form'
 import type { AnyFieldApi } from '@tanstack/react-form'
 import { useStore } from '@tanstack/react-store'
@@ -10,6 +11,8 @@ import type { AttachedFile } from '@/types/chat'
 interface ChatInputProps {
     onSubmit: (message: string, files?: AttachedFile[]) => void
     isLoading: boolean
+    droppedFiles?: AttachedFile[]
+    onDroppedFilesConsumed?: () => void
 }
 
 function FieldInfo({ field }: { field: AnyFieldApi }) {
@@ -26,7 +29,7 @@ function FieldInfo({ field }: { field: AnyFieldApi }) {
     )
 }
 
-export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
+export function ChatInput({ onSubmit, isLoading, droppedFiles, onDroppedFilesConsumed }: ChatInputProps) {
     const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -39,6 +42,14 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
     const currentProvider = AI_PROVIDERS.find((p) => p.id === selectedProvider)
     const currentModel = currentProvider?.models.find((m) => m.id === selectedModel)
     const supportsFiles = currentModel?.supportsVision || false
+
+    // Handle dropped files from parent
+    useEffect(() => {
+        if (droppedFiles && droppedFiles.length > 0) {
+            setAttachedFiles((prev) => [...prev, ...droppedFiles])
+            onDroppedFilesConsumed?.()
+        }
+    }, [droppedFiles, onDroppedFilesConsumed])
 
     const form = useForm({
         defaultValues: {
@@ -86,10 +97,15 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
         }
 
         setAttachedFiles([...attachedFiles, ...newFiles])
+
+        // Reset file input to allow re-selecting the same file
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+        }
     }
 
     return (
-        <div className="sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-4 pb-6">
+        <div className="sticky bottom-0 pt-4 pb-6 ">
             <form
                 onSubmit={(e) => {
                     e.preventDefault()
@@ -98,126 +114,132 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
                 }}
                 className="max-w-3xl mx-auto px-4"
             >
-                <div className="relative flex flex-col gap-2">
-                    {/* Input container with texture */}
-                    <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-border/40 via-transparent to-border/40 rounded-xl" />
-
-                        <div className="relative flex flex-col gap-3 bg-card/80 backdrop-blur-sm rounded-xl p-3 border border-border/60 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08),0_2px_4px_rgba(0,0,0,0.06)] transition-all duration-200">
-
-                            {/* File Previews - ABOVE input */}
-                            {attachedFiles.length > 0 && (
-                                <div className="flex gap-2 flex-wrap">
-                                    {attachedFiles.map((file) => (
-                                        <div
-                                            key={file.id}
-                                            className="relative group rounded-lg overflow-hidden border bg-muted"
-                                        >
-                                            <img
-                                                src={file.preview}
-                                                alt={file.name}
-                                                className="h-20 w-20 object-cover"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setAttachedFiles(attachedFiles.filter((f) => f.id !== file.id))
-                                                }
-                                                className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Input row */}
-                            <div className="flex items-end gap-2">
-                                {/* File Button */}
-                                {/* <div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        multiple
-                                        className="hidden"
-                                        onChange={handleFileSelect}
-                                        disabled={!supportsFiles}
-                                    />
-                                    <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => fileInputRef.current?.click()}
-                                        disabled={!supportsFiles}
-                                        className="shrink-0 h-10 w-10 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
-                                        title={
-                                            supportsFiles
-                                                ? 'Attach image'
-                                                : 'Model does not support images'
-                                        }
+                <div className="relative flex flex-col gap-2 bg-transparent">
+                    {/* Input container - pill when empty, card when files attached */}
+                    <motion.div
+                        className="relative flex flex-col bg-muted/50 backdrop-blur-sm border border-border/60 
+                            shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
+                        animate={{
+                            borderRadius: attachedFiles.length > 0 ? 24 : 9999,
+                            padding: attachedFiles.length > 0 ? 12 : 0,
+                        }}
+                        transition={{ duration: 0 }}
+                    >
+                        {/* File Previews - inside container, above input */}
+                        {attachedFiles.length > 0 && (
+                            <div className="flex gap-2 flex-wrap p-2 pb-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                                {attachedFiles.map((file, index) => (
+                                    <div
+                                        key={file.id}
+                                        className="relative group rounded-2xl overflow-hidden border border-border/30 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-105 animate-in zoom-in-95 fade-in"
+                                        style={{ animationDelay: `${index * 50}ms` }}
                                     >
-                                        <Plus className="h-5 w-5" />
-                                    </Button>
-                                </div> */}
-
-                                {/* Textarea */}
-                                <div className="flex-1 bg-background/40 rounded-lg p-2">
-                                    <form.Field
-                                        name="message"
-                                        validators={{
-                                            onChange: ({ value }) =>
-                                                !value || value.trim().length === 0
-                                                    ? 'Message cannot be empty'
-                                                    : value.length > 4000
-                                                        ? 'Message is too long (max 4000 characters)'
-                                                        : undefined,
-                                        }}
-                                    >
-                                        {(field) => (
-                                            <textarea
-                                                value={field.state.value}
-                                                onChange={(e) => field.handleChange(e.target.value)}
-                                                onBlur={field.handleBlur}
-                                                onKeyDown={handleKeyDown}
-                                                placeholder="Type your message..."
-                                                className="w-full bg-transparent border-0 resize-none focus:ring-0 focus:outline-none min-h-[52px] max-h-[200px] py-2 px-3 text-sm placeholder:text-muted-foreground/50 leading-relaxed"
-                                                rows={1}
-                                                disabled={isLoading}
-                                            />
-                                        )}
-                                    </form.Field>
-                                </div>
-
-                                {/* Send button */}
-                                <form.Subscribe
-                                    selector={(state) => ({
-                                        canSubmit: state.canSubmit,
-                                        isSubmitting: state.isSubmitting,
-                                    })}
-                                >
-                                    {(state) => (
-                                        <Button
-                                            type="submit"
-                                            size="icon"
-                                            disabled={isLoading || !state.canSubmit || state.isSubmitting}
-                                            className="shrink-0 rounded-xl h-11 w-11 m-1 shadow-sm hover:shadow-md transition-all duration-200"
+                                        <img
+                                            src={file.preview}
+                                            alt={file.name}
+                                            className="h-24 w-24 object-cover"
+                                        />
+                                        {/* Overlay on hover */}
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setAttachedFiles(attachedFiles.filter((f) => f.id !== file.id))
+                                            }
+                                            className="absolute top-1.5 right-1.5 p-1.5 bg-black/60 hover:bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 transform scale-90 group-hover:scale-100"
                                         >
-                                            <ArrowUp className="h-5 w-5" />
-                                        </Button>
-                                    )}
-                                </form.Subscribe>
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
+                        )}
+
+                        {/* Input row */}
+                        <div className={`flex items-center gap-1 ${attachedFiles.length > 0 ? '' : 'px-1'}`}>
+                            {/* File Button */}
+                            <div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                    disabled={!supportsFiles}
+                                />
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={!supportsFiles}
+                                    className="shrink-0 h-10 w-10 rounded-full disabled:opacity-30 disabled:cursor-not-allowed hover:bg-background/50"
+                                    title={
+                                        supportsFiles
+                                            ? 'Attach image'
+                                            : 'Model does not support images'
+                                    }
+                                >
+                                    <Plus className="h-5 w-5" />
+                                </Button>
+                            </div>
+
+                            {/* Textarea */}
+                            <div className="flex-1">
+                                <form.Field
+                                    name="message"
+                                    validators={{
+                                        onChange: ({ value }) =>
+                                            !value || value.trim().length === 0
+                                                ? 'Message cannot be empty'
+                                                : value.length > 4000
+                                                    ? 'Message is too long (max 4000 characters)'
+                                                    : undefined,
+                                    }}
+                                >
+                                    {(field) => (
+                                        <textarea
+                                            value={field.state.value}
+                                            onChange={(e) => field.handleChange(e.target.value)}
+                                            onBlur={field.handleBlur}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder="Type your message..."
+                                            className="w-full bg-transparent border-0 resize-none focus:ring-0 focus:outline-none min-h-[44px] max-h-[200px] pt-3 pb-3.5 px-2 text-sm placeholder:text-muted-foreground/50 leading-normal"
+                                            rows={1}
+                                            disabled={isLoading}
+                                        />
+                                    )}
+                                </form.Field>
+                            </div>
+
+                            {/* Send button */}
+                            <form.Subscribe
+                                selector={(state) => ({
+                                    canSubmit: state.canSubmit,
+                                    isSubmitting: state.isSubmitting,
+                                })}
+                            >
+                                {(state) => (
+                                    <Button
+                                        type="submit"
+                                        size="icon"
+                                        disabled={isLoading || !state.canSubmit || state.isSubmitting}
+                                        className="shrink-0 rounded-full h-10 w-10 shadow-sm hover:shadow-md transition-all duration-200"
+                                    >
+                                        <ArrowUp className="h-5 w-5" />
+                                    </Button>
+                                )}
+                            </form.Subscribe>
                         </div>
-                    </div>
+                    </motion.div>
 
                     {/* Error display */}
                     <form.Field name="message">
                         {(field) => <FieldInfo field={field} />}
                     </form.Field>
                 </div>
-            </form>
-        </div>
+            </form >
+        </div >
     )
 }

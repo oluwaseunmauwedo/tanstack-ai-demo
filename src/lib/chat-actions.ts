@@ -170,7 +170,7 @@ export const streamChatResponse = createServerFn({
         chatId: string
         messages: Array<{
             role: 'user' | 'assistant'
-            content: string | Array<{ type: string; text?: string; source?: any; metadata?: any }>
+            content: string | Array<{ type: string; content?: string; source?: any }>
         }>
         provider?: string
         model?: string
@@ -179,6 +179,7 @@ export const streamChatResponse = createServerFn({
     const provider = data.provider || 'openai'
     const model = data.model || 'gpt-4o-mini'
 
+    // Filter out empty messages
     const filteredMessages = data.messages.filter((m) => {
         if (typeof m.content === 'string') {
             return m.content && m.content.trim().length > 0
@@ -186,91 +187,34 @@ export const streamChatResponse = createServerFn({
         return m.content && m.content.length > 0
     })
 
-
-    // Select adapter and create stream based on provider
-    if (provider === 'anthropic') {
-        const adapter = anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
-        const stream = chat({
-            adapter,
-            model: model as any,
-            messages: filteredMessages as any, // Cast to any for multimodal content
-        })
-        for await (const chunk of stream) {
-            if (chunk.type === 'content') {
-                yield { type: 'content', content: chunk.content }
-            }
-        }
-    } else if (provider === 'gemini') {
-        const adapter = gemini({ apiKey: process.env.GEMINI_API_KEY! } as any)
-        const stream = chat({
-            adapter,
-            model: model as any,
-            messages: filteredMessages as any, // Cast to any for multimodal content
-        })
-        for await (const chunk of stream) {
-            if (chunk.type === 'content') {
-                yield { type: 'content', content: chunk.content }
-            }
-        }
-    } else if (provider === 'ollama') {
-        const baseURL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434'
-        const adapter = ollama({ baseURL })
-        const stream = chat({
-            adapter,
-            model: model as any,
-            messages: filteredMessages as any,
-        })
-        for await (const chunk of stream) {
-            if (chunk.type === 'content') {
-                yield { type: 'content', content: chunk.content }
-            }
-        }
-    } else {
-        // OpenAI - Debug with truncated base64
-        const debugMessages = filteredMessages.map((msg: any) => ({
-            ...msg,
-            content: Array.isArray(msg.content)
-                ? msg.content.map((part: any) =>
-                    part.type === 'image_url'
-                        ? {
-                            type: 'image_url',
-                            image_url: {
-                                url: part.image_url?.url?.substring(0, 50) + '...[TRUNCATED]',
-                                detail: part.image_url?.detail,
-                            },
-                        }
-                        : part
-                )
-                : msg.content,
-        }))
-        console.log('🔍 OpenAI - Messages:', JSON.stringify(debugMessages, null, 2))
-        const adapter = openai()
-
-        try {
-            console.log('🔍 Starting OpenAI stream...')
-            const stream = chat({
-                adapter,
-                model: model as any,
-                messages: filteredMessages as any,
-            })
-            let chunkCount = 0
-            for await (const chunk of stream) {
-                console.log('🔍 Received chunk:', chunk.type)
-                if (chunk.type === 'content') {
-                    chunkCount++
-                    yield { type: 'content', content: chunk.content }
-                }
-            }
-            console.log('🔍 Stream complete. Total content chunks:', chunkCount)
-        } catch (error: any) {
-            console.error('>>> chatStream: Fatal error during response creation <<<')
-            console.error('>>> Error message:', error.message)
-            console.error('>>> Error stack:', error.stack)
-            console.error('>>> Full error:', error)
-            throw error
+    // Get adapter based on provider
+    const getAdapter = () => {
+        switch (provider) {
+            case 'anthropic':
+                return anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+            case 'gemini':
+                return gemini({ apiKey: process.env.GEMINI_API_KEY! } as any)
+            case 'ollama':
+                return ollama({ baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434' })
+            default:
+                return openai()
         }
     }
 
+    const adapter = getAdapter()
+
+    // Stream chat response
+    const stream = chat({
+        adapter: adapter as any,
+        model: model as any,
+        messages: filteredMessages as any,
+    })
+
+    for await (const chunk of stream) {
+        if (chunk.type === 'content') {
+            yield { type: 'content', content: chunk.content }
+        }
+    }
 })
 
 // Save assistant message

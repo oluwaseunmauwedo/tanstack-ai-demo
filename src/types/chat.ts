@@ -3,6 +3,7 @@ export interface Message {
     role: 'user' | 'assistant'
     content: string
     createdAt: Date
+    files?: AttachedFile[] // Attached images
 }
 
 export interface AttachedFile {

@@ -1,17 +1,63 @@
+import { useState } from 'react'
 import type { Message } from '@/types'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
+// Image preview modal
+function ImagePreview({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            onClick={onClose}
+        >
+            <img
+                src={src}
+                alt={alt}
+                className="max-w-full max-h-full rounded-lg object-contain"
+                onClick={(e) => e.stopPropagation()}
+            />
+        </div>
+    )
+}
+
 export function MessageBubble({ message }: { message: Message }) {
     const isUser = message.role === 'user'
+    const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null)
 
     if (isUser) {
         return (
-            <div className="flex justify-end">
-                <div className="rounded-2xl px-4 py-3 max-w-[80%] text-sm bg-primary text-primary-foreground">
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+            <>
+                {/* Image preview modal */}
+                {previewImage && (
+                    <ImagePreview
+                        src={previewImage.src}
+                        alt={previewImage.alt}
+                        onClose={() => setPreviewImage(null)}
+                    />
+                )}
+
+                <div className="flex flex-col items-end gap-2">
+                    {/* Images displayed separately (like separate messages) */}
+                    {message.files && message.files.length > 0 && (
+                        <div className="flex flex-wrap justify-end gap-2 max-w-[80%]">
+                            {message.files.map((file) => (
+                                <img
+                                    key={file.id}
+                                    src={file.data}
+                                    alt={file.name}
+                                    className="max-w-[250px] max-h-[250px] rounded-2xl object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => setPreviewImage({ src: file.data, alt: file.name })}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Text message bubble */}
+                    <div className="rounded-2xl px-4 py-3 max-w-[80%] text-sm bg-primary text-primary-foreground">
+                        <p className="whitespace-pre-wrap">{message.content}</p>
+                    </div>
                 </div>
-            </div>
+            </>
         )
     }
 
